@@ -91,23 +91,6 @@ export function TripInfoScreen() {
             <button onClick={() => setTravelers(travelers + 1)} className="w-9 h-9 rounded-full bg-white border border-gray-200 flex items-center justify-center text-gray-600">+</button>
           </div>
         </div>
-
-        {/* Quick suggestions */}
-        <div>
-          <p className="text-gray-400 mb-2" style={{ fontSize: '0.75rem', fontWeight: 500 }}>인기 여행지</p>
-          <div className="flex gap-2 flex-wrap">
-            {['도쿄', '오사카', '방콕', '다낭', '파리', '제주'].map(city => (
-              <button
-                key={city}
-                onClick={() => setDest(city)}
-                className={`px-4 py-2 rounded-full border ${dest === city ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-600 border-gray-200'}`}
-                style={{ fontSize: '0.85rem', fontWeight: 500 }}
-              >
-                {city}
-              </button>
-            ))}
-          </div>
-        </div>
       </div>
 
       {/* Bottom CTA */}

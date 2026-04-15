@@ -43,13 +43,6 @@ export function LoginScreen() {
             <MessageCircle className="w-6 h-6 fill-black/85" />
             카카오 로그인
           </button>
-          <button
-            onClick={handleLogin}
-            className="w-full h-14 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 rounded-xl flex items-center justify-center gap-3 font-semibold text-lg transition-colors active:scale-95"
-            style={{ fontWeight: 600 }}
-          >
-            이메일로 계속하기
-          </button>
         </motion.div>
       </div>
 
