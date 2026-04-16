@@ -95,6 +95,8 @@ export function PlacesScreen() {
     );
 
   const currentDep = daySchedules[activeDay]?.departure;
+  const currentStartHour =
+    daySchedules[activeDay]?.startHour ?? 9;
 
   const sortedPlaces = useMemo(() => {
     if (!currentDep) return SAMPLE_PLACES;
