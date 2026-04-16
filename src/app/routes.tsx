@@ -7,7 +7,6 @@ import { StyleScreen } from './components/StyleScreen';
 import { ModeScreen } from './components/ModeScreen';
 import { PlacesScreen } from './components/PlacesScreen';
 import { TimelineEditor } from './components/TimelineEditor';
-import { RainyScreen } from './components/RainyScreen';
 import { ShareScreen } from './components/ShareScreen';
 import { SavedTripsScreen } from './components/SavedTripsScreen';
 import { MyPageScreen } from './components/MyPageScreen';
@@ -23,7 +22,6 @@ import { TravelHistoryScreen } from './components/TravelHistoryScreen';
 import { PrivacyPolicyScreen } from './components/PrivacyPolicyScreen';
 import { CustomerSupportScreen } from './components/CustomerSupportScreen';
 
-// Root layout that provides context to all routes
 function RootLayout() {
   return (
     <AppProvider>
@@ -32,7 +30,6 @@ function RootLayout() {
   );
 }
 
-// Layout with bottom nav
 function AppLayout() {
   return (
     <MobileFrame>
@@ -42,11 +39,6 @@ function AppLayout() {
       <BottomNav />
     </MobileFrame>
   );
-}
-
-// Layout without bottom nav (wizard flow screens)
-function Wrap({ children }: { children: React.ReactNode }) {
-  return <MobileFrame>{children}</MobileFrame>;
 }
 
 function WizardLayout() {
@@ -82,7 +74,6 @@ export const router = createBrowserRouter([
           { path: '/places', Component: PlacesScreen },
           { path: '/editor', Component: TimelineEditor },
           { path: '/share', Component: ShareScreen },
-          { path: '/rainy', Component: RainyScreen },
           { path: '/notifications', Component: NotificationSettingsScreen },
           { path: '/history', Component: TravelHistoryScreen },
           { path: '/privacy', Component: PrivacyPolicyScreen },
