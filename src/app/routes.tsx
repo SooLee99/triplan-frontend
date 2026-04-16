@@ -21,6 +21,8 @@ import { NotificationSettingsScreen } from './components/NotificationSettingsScr
 import { TravelHistoryScreen } from './components/TravelHistoryScreen';
 import { PrivacyPolicyScreen } from './components/PrivacyPolicyScreen';
 import { CustomerSupportScreen } from './components/CustomerSupportScreen';
+import { DestinationSelectScreen } from './components/DestinationSelectScreen';
+import { MapSearchScreen } from './components/MapSearchScreen';
 
 function RootLayout() {
   return (
@@ -78,6 +80,8 @@ export const router = createBrowserRouter([
           { path: '/history', Component: TravelHistoryScreen },
           { path: '/privacy', Component: PrivacyPolicyScreen },
           { path: '/support', Component: CustomerSupportScreen },
+          { path: '/destination', Component: DestinationSelectScreen },
+          { path: '/map-search', Component: MapSearchScreen },
         ],
       },
     ],

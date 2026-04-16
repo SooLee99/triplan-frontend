@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useApp } from '../context';
 import { MapPin, Calendar, Users, ChevronRight, Plane } from 'lucide-react';
@@ -10,6 +10,11 @@ export function TripInfoScreen() {
   const [start, setStart] = useState(tripInfo.startDate);
   const [end, setEnd] = useState(tripInfo.endDate);
   const [travelers, setTravelers] = useState(tripInfo.travelers);
+
+  useEffect(() => {
+    setDest(tripInfo.destination);
+  }, [tripInfo.destination]);
+
 
   const handleNext = () => {
     setTripInfo({ destination: dest, startDate: start, endDate: end, travelers });
@@ -40,13 +45,21 @@ export function TripInfoScreen() {
             <MapPin className="w-5 h-5 text-blue-600" />
             <span className="text-gray-500" style={{ fontSize: '0.8rem', fontWeight: 500 }}>여행지</span>
           </div>
-          <input
-            value={dest}
-            onChange={e => setDest(e.target.value)}
-            placeholder="도시 또는 지역을 입력하세요"
-            className="w-full bg-transparent outline-none text-gray-900 placeholder:text-gray-300"
-            style={{ fontSize: '1.05rem', fontWeight: 500 }}
-          />
+          <button
+            type="button"
+            onClick={() => navigate('/destination')}
+            className="w-full"
+          >
+          <div className="w-full text-left flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3.5 py-3 focus-within:border-blue-500">
+            <span
+              className={dest ? 'text-gray-900' : 'text-gray-400'}
+              style={{ fontSize: '1.05rem', fontWeight: 500 }}
+            >
+              {dest || '도시 또는 지역을 선택하세요'}
+            </span>
+            <ChevronRight className="w-4 h-4 text-gray-300" />
+            </div>
+          </button>
         </div>
 
         {/* Dates */}
