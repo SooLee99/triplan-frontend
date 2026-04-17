@@ -46,7 +46,8 @@ export function ShareScreen() {
   const getStartTime = (
     day: (typeof normalizedDaySchedules)[number],
   ) => {
-    const base = (day.startHour || 9) * 60;
+    const base =
+      (day.startHour || 9) * 60 + (day.startMinute || 0);
     return `${String(Math.floor(base / 60)).padStart(2, "0")}:${String(base % 60).padStart(2, "0")}`;
   };
 

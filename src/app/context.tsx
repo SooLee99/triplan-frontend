@@ -56,6 +56,11 @@ interface AppState {
   // Per-day departure / arrival
   updateDayDeparture: (dayIdx: number, point: DayPoint) => void;
   updateDayArrival: (dayIdx: number, point: DayPoint) => void;
+  updateDayStartTime: (
+    dayIdx: number,
+    startHour: number,
+    startMinute: number,
+  ) => void;
   initDaySchedules: () => void;
 
   // Build
@@ -227,6 +232,7 @@ export function AppProvider({
         arrivalSegment: existing?.arrivalSegment,
         items: existing?.items || [],
         startHour: existing?.startHour || 9,
+        startMinute: existing?.startMinute || 0,
       });
     }
 
@@ -276,6 +282,27 @@ export function AppProvider({
               updated[dayIdx],
             );
           }
+        }
+        return updated;
+      });
+    },
+    [],
+  );
+
+   const updateDayStartTime = useCallback(
+    (
+      dayIdx: number,
+      startHour: number,
+      startMinute: number,
+    ) => {
+      setDaySchedulesRaw((prev) => {
+        const updated = [...prev];
+        if (updated[dayIdx]) {
+          updated[dayIdx] = recalculateDaySchedule({
+            ...updated[dayIdx],
+            startHour,
+            startMinute,
+          });
         }
         return updated;
       });
@@ -723,7 +750,12 @@ export function AppProvider({
     setStyles(trip.styles);
 
     if (trip.daySchedules && trip.daySchedules.length > 0) {
-      setDaySchedulesRaw(trip.daySchedules);
+      setDaySchedulesRaw(
+        trip.daySchedules.map((day) => ({
+          ...day,
+          startMinute: day.startMinute || 0,
+        })),
+      );
       setSelectedPlacesByDay(
         trip.daySchedules.map((day) =>
           day.items.map((item) => item.place),
@@ -738,6 +770,7 @@ export function AppProvider({
           arrival: { ...DEFAULT_ARRIVAL },
           items: trip.schedule,
           startHour: 9,
+          startMinute: 0,
         },
       ]);
 
@@ -773,6 +806,7 @@ export function AppProvider({
 
         updateDayDeparture,
         updateDayArrival,
+        updateDayStartTime,
         initDaySchedules,
 
         buildScheduleForDay,

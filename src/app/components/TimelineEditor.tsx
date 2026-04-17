@@ -41,6 +41,7 @@ export function TimelineEditor() {
     updateTransport,
     updateDepartureTransport,
     updateArrivalTransport,
+    updateDayStartTime,
     removePlace,
     movePlace,
     replacePlace,
@@ -65,6 +66,9 @@ export function TimelineEditor() {
   const [expandedMap, setExpandedMap] = useState(true);
   const [showSaved, setShowSaved] = useState(false);
   const [showRainPanel, setShowRainPanel] = useState(false);
+  const [draggingIdx, setDraggingIdx] = useState<number | null>(
+    null,
+  );
 
   const day = daySchedules[currentDay];
 
@@ -116,8 +120,29 @@ export function TimelineEditor() {
   };
 
   const getStartTime = () => {
-    const base = day.startHour * 60;
+    const base = day.startHour * 60 + (day.startMinute || 0);
     return `${String(Math.floor(base / 60)).padStart(2, "0")}:${String(base % 60).padStart(2, "0")}`;
+  };
+
+  const handleStartTimeChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const [hourStr, minStr] = event.target.value.split(":");
+    const startHour = Number(hourStr);
+    const startMinute = Number(minStr);
+
+    if (
+      Number.isNaN(startHour) ||
+      Number.isNaN(startMinute) ||
+      startHour < 0 ||
+      startHour > 23 ||
+      startMinute < 0 ||
+      startMinute > 59
+    ) {
+      return;
+    }
+
+    updateDayStartTime(currentDay, startHour, startMinute);
   };
 
   const handleMoveUp = (idx: number) => {
@@ -299,14 +324,23 @@ export function TimelineEditor() {
           </div>
         )}
 
-        <div className="flex items-center gap-2 mt-3 bg-gray-50 rounded-xl px-3 py-2">
-          <Clock className="w-4 h-4 text-blue-600" />
-          <span
-            className="text-gray-600"
-            style={{ fontSize: "0.8rem", fontWeight: 500 }}
-          >
-            {getStartTime()} 출발 → {getEndTime()} 종료
-          </span>
+        <div className="flex items-center justify-between gap-2 mt-3 bg-gray-50 rounded-xl px-3 py-2">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-blue-600" />
+            <span
+              className="text-gray-600"
+              style={{ fontSize: "0.8rem", fontWeight: 500 }}
+            >
+              {getStartTime()} 출발 → {getEndTime()} 종료
+            </span>
+          </div>
+          <input
+            type="time"
+            value={getStartTime()}
+            onChange={handleStartTimeChange}
+            className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-600"
+            style={{ fontSize: "0.75rem", fontWeight: 600 }}
+          />
         </div>
       </div>
 
@@ -703,7 +737,14 @@ export function TimelineEditor() {
           </button>
         </div>
 
-        <div className="bg-green-50 rounded-2xl p-3 border-2 border-green-200 mb-1">
+        <button
+          onClick={() =>
+            navigate(
+              `/map-search?type=departure&day=${currentDay}&returnTo=/editor`,
+            )
+          }
+          className="w-full bg-green-50 rounded-2xl p-3 border-2 border-green-200 mb-1 text-left"
+        >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
               <CircleDot className="w-4 h-4 text-white" />
@@ -729,7 +770,7 @@ export function TimelineEditor() {
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
         {day.departureSegment && items.length > 0 && (
           <div className="ml-6 my-1 flex items-center gap-2">
@@ -781,7 +822,23 @@ export function TimelineEditor() {
 
         {items.map((item, idx) => (
           <React.Fragment key={`${item.place.id}-${idx}`}>
-            <div className="bg-white rounded-2xl p-3.5 shadow-sm border border-gray-100 mb-1 relative">
+            <div
+              className={`bg-white rounded-2xl p-3.5 shadow-sm border mb-1 relative transition-colors ${
+                draggingIdx === idx
+                  ? "border-blue-300 bg-blue-50/40"
+                  : "border-gray-100"
+              }`}
+              draggable
+              onDragStart={() => setDraggingIdx(idx)}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={() => {
+                if (draggingIdx !== null && draggingIdx !== idx) {
+                  movePlace(draggingIdx, idx);
+                }
+                setDraggingIdx(null);
+              }}
+              onDragEnd={() => setDraggingIdx(null)}
+            >
               <div
                 className="absolute -left-1 top-4 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white z-10"
                 style={{ fontSize: "0.7rem", fontWeight: 700 }}
@@ -800,15 +857,21 @@ export function TimelineEditor() {
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between">
-                    <span
+                    <button
+                      type="button"
+                      onClick={() =>
+                        navigate(
+                          `/map-search?type=place&day=${currentDay}&placeId=${item.place.id}&returnTo=/editor`,
+                        )
+                      }
                       style={{
                         fontSize: "0.9rem",
                         fontWeight: 600,
                       }}
-                      className="truncate"
+                      className="truncate text-left hover:text-blue-600"
                     >
                       {item.place.name}
-                    </span>
+                    </button>
                     <div className="flex items-center gap-1">
                       <button
                         onClick={() => handleMoveUp(idx)}
@@ -1000,7 +1063,14 @@ export function TimelineEditor() {
           </div>
         )}
 
-        <div className="bg-red-50 rounded-2xl p-3 border-2 border-red-200 mt-1">
+        <button
+          onClick={() =>
+            navigate(
+              `/map-search?type=arrival&day=${currentDay}&returnTo=/editor`,
+            )
+          }
+          className="w-full bg-red-50 rounded-2xl p-3 border-2 border-red-200 mt-1 text-left"
+        >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
               <Flag className="w-4 h-4 text-white" />
@@ -1026,7 +1096,7 @@ export function TimelineEditor() {
               </span>
             </div>
           </div>
-        </div>
+        </button>
 
         {items.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">

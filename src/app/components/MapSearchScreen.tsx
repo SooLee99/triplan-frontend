@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useApp } from '../context';
 import { MAP_LOCATION_ITEMS } from '../data/mapLocations';
+import { type Place } from '../store';
 import { ChevronLeft, Search, MapPin, Navigation, LocateFixed } from 'lucide-react';
 
 function formatDistance(lat: number, lng: number) {
@@ -16,13 +17,22 @@ function formatDistance(lat: number, lng: number) {
 export function MapSearchScreen() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { updateDayArrival, updateDayDeparture } = useApp();
+  const { updateDayArrival, updateDayDeparture, replacePlace } = useApp();
   const [query, setQuery] = useState('');
   const [searchedQuery, setSearchedQuery] = useState('');
 
-  const type = params.get('type') === 'arrival' ? 'arrival' : 'departure';
+  const typeParam = params.get('type');
+  const type =
+    typeParam === 'arrival'
+      ? 'arrival'
+      : typeParam === 'place'
+        ? 'place'
+        : 'departure';
+
   const day = Number(params.get('day') ?? 0);
   const safeDay = Number.isNaN(day) ? 0 : day;
+  const placeId = params.get('placeId');
+  const returnTo = params.get('returnTo') || '/departure';
 
   const resultItems = useMemo(() => {
     const keyword = searchedQuery.trim().toLowerCase();
@@ -38,31 +48,71 @@ export function MapSearchScreen() {
     setSearchedQuery(query.trim());
   };
 
-  const handleSelect = (name: string, lat: number, lng: number) => {
+  const handleSelect = (
+    id: string,
+    name: string,
+    lat: number,
+    lng: number,
+    category: string,
+    address: string,
+  ) => {
     const point = { name, lat, lng };
-    if (type === 'arrival') {
+
+    if (type === 'place' && placeId) {
+      const newPlace: Place = {
+        id: `map-${id}`,
+        name,
+        lat,
+        lng,
+        category,
+        address,
+        image:
+          'https://images.unsplash.com/photo-1549692520-acc6669e2f0c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&q=80&w=400',
+        duration: 60,
+        isIndoor: category === '쇼핑' || category === '역' || category === '공항',
+        rating: 4.3,
+      };
+
+      replacePlace(placeId, newPlace);
+    } else if (type === 'arrival') {
       updateDayArrival(safeDay, point);
     } else {
       updateDayDeparture(safeDay, point);
     }
-    navigate('/departure');
+
+    navigate(returnTo);
   };
 
   return (
     <div className="flex flex-col h-full bg-white">
       <div className="px-6 pt-14 pb-3 flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center">
+        <button
+          onClick={() => navigate(-1)}
+          className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center"
+        >
           <ChevronLeft className="w-5 h-5 text-gray-600" />
         </button>
         <div>
-          <p className="text-gray-400" style={{ fontSize: '0.75rem', fontWeight: 500 }}>지도 검색</p>
+          <p
+            className="text-gray-400"
+            style={{ fontSize: '0.75rem', fontWeight: 500 }}
+          >
+            지도 검색
+          </p>
           <h2 style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-            {type === 'arrival' ? '도착지 선택' : '출발지 선택'}
+            {type === 'arrival'
+              ? '도착지 선택'
+              : type === 'place'
+                ? '장소 변경'
+                : '출발지 선택'}
           </h2>
         </div>
       </div>
 
-      <p className="px-6 text-gray-500 mb-4" style={{ fontSize: '0.8rem' }}>
+      <p
+        className="px-6 text-gray-500 mb-4"
+        style={{ fontSize: '0.8rem' }}
+      >
         현재는 프론트 데이터로 검색하며, 추후 지도 API로 대체될 예정입니다.
       </p>
 
@@ -92,12 +142,18 @@ export function MapSearchScreen() {
         <div className="rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-100 p-4">
           <div className="flex items-center gap-2 mb-2">
             <LocateFixed className="w-4 h-4 text-blue-600" />
-            <span className="text-blue-700" style={{ fontSize: '0.78rem', fontWeight: 600 }}>
+            <span
+              className="text-blue-700"
+              style={{ fontSize: '0.78rem', fontWeight: 600 }}
+            >
               지도 미리보기 영역 (API 연동 예정)
             </span>
           </div>
           <div className="h-28 rounded-xl bg-white/70 border border-dashed border-blue-200 flex items-center justify-center">
-            <span className="text-blue-400" style={{ fontSize: '0.75rem', fontWeight: 500 }}>
+            <span
+              className="text-blue-400"
+              style={{ fontSize: '0.75rem', fontWeight: 500 }}
+            >
               검색 결과를 기반으로 지도 핀/영역 표시 예정
             </span>
           </div>
@@ -110,7 +166,16 @@ export function MapSearchScreen() {
             <button
               key={item.id}
               type="button"
-              onClick={() => handleSelect(item.name, item.lat, item.lng)}
+              onClick={() =>
+                handleSelect(
+                  item.id,
+                  item.name,
+                  item.lat,
+                  item.lng,
+                  item.category,
+                  item.address,
+                )
+              }
               className="w-full text-left rounded-2xl border border-gray-100 bg-white px-4 py-3 hover:border-blue-300 hover:bg-blue-50/40 transition-all"
             >
               <div className="flex items-start gap-3">
@@ -119,15 +184,31 @@ export function MapSearchScreen() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <p className="truncate text-gray-900" style={{ fontSize: '0.9rem', fontWeight: 600 }}>{item.name}</p>
-                    <span className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full" style={{ fontSize: '0.65rem', fontWeight: 600 }}>
+                    <p
+                      className="truncate text-gray-900"
+                      style={{ fontSize: '0.9rem', fontWeight: 600 }}
+                    >
+                      {item.name}
+                    </p>
+                    <span
+                      className="text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full"
+                      style={{ fontSize: '0.65rem', fontWeight: 600 }}
+                    >
                       {item.category}
                     </span>
                   </div>
-                  <p className="text-gray-500 mt-0.5 truncate" style={{ fontSize: '0.76rem' }}>{item.address}</p>
-                  <div className="flex items-center gap-1 text-gray-400 mt-1" style={{ fontSize: '0.7rem' }}>
-                    <Navigation className="w-3 h-3" />
-                    도쿄역 기준 약 {formatDistance(item.lat, item.lng)}
+                  <p
+                    className="text-gray-500 mt-0.5 truncate"
+                    style={{ fontSize: '0.76rem' }}
+                  >
+                    {item.address}
+                  </p>
+                  <div
+                    className="flex items-center gap-1 text-gray-400 mt-1"
+                    style={{ fontSize: '0.7rem' }}
+                  >
+                    <Navigation className="w-3 h-3" />도쿄역 기준 약{' '}
+                    {formatDistance(item.lat, item.lng)}
                   </div>
                 </div>
               </div>
@@ -135,8 +216,16 @@ export function MapSearchScreen() {
           ))
         ) : (
           <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50 px-4 py-8 text-center">
-            <p className="text-gray-500" style={{ fontSize: '0.86rem', fontWeight: 600 }}>검색 결과가 없습니다</p>
-            <p className="text-gray-400 mt-1" style={{ fontSize: '0.75rem' }}>
+            <p
+              className="text-gray-500"
+              style={{ fontSize: '0.86rem', fontWeight: 600 }}
+            >
+              검색 결과가 없습니다
+            </p>
+            <p
+              className="text-gray-400 mt-1"
+              style={{ fontSize: '0.75rem' }}
+            >
               다른 키워드로 다시 검색해 주세요.
             </p>
           </div>

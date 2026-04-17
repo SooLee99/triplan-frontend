@@ -40,6 +40,7 @@ export interface DaySchedule {
   arrivalSegment?: Segment; // transport from last place → arrival
   items: ScheduleItem[];
   startHour: number;
+  startMinute: number;
 }
 
 export interface SavedTrip {
@@ -178,7 +179,7 @@ export function recalculateSchedule(items: ScheduleItem[], startHour: number = 9
 // Recalculate a full day schedule including departure/arrival segments
 export function recalculateDaySchedule(day: DaySchedule): DaySchedule {
   const items = day.items;
-  const startMin = day.startHour * 60;
+  const startMin = day.startHour * 60 + (day.startMinute || 0);
   let currentMin = startMin;
 
   // Departure → first place segment
