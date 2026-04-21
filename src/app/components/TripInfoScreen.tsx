@@ -17,7 +17,7 @@ export function TripInfoScreen() {
 
 
   const handleNext = () => {
-    setTripInfo({ destination: dest, startDate: start, endDate: end, travelers });
+    setTripInfo({ ...tripInfo, destination: dest, startDate: start, endDate: end, travelers });
     navigate('/style');
   };
 

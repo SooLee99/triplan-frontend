@@ -24,6 +24,8 @@ import {
 
 interface TripInfo {
   destination: string;
+  destinationAreaCode?: number;
+  destinationSigunguCode?: number;
   startDate: string;
   endDate: string;
   travelers: number;
@@ -119,7 +121,9 @@ export function AppProvider({
   children: React.ReactNode;
 }) {
   const [tripInfo, setTripInfo] = useState<TripInfo>({
-    destination: "도쿄",
+    destination: "서울 종로구",
+    destinationAreaCode: 11,
+    destinationSigunguCode: 110,
     startDate: "2026-05-01",
     endDate: "2026-05-03",
     travelers: 2,
@@ -289,7 +293,7 @@ export function AppProvider({
     [],
   );
 
-   const updateDayStartTime = useCallback(
+  const updateDayStartTime = useCallback(
     (
       dayIdx: number,
       startHour: number,
@@ -701,6 +705,8 @@ export function AppProvider({
       const trip: SavedTrip = {
         id,
         destination: tripInfo.destination,
+        destinationAreaCode: tripInfo.destinationAreaCode,
+        destinationSigunguCode: tripInfo.destinationSigunguCode,
         startDate: tripInfo.startDate,
         endDate: tripInfo.endDate,
         travelers: tripInfo.travelers,
@@ -742,6 +748,8 @@ export function AppProvider({
   const loadTrip = useCallback((trip: SavedTrip) => {
     setTripInfo({
       destination: trip.destination,
+      destinationAreaCode: trip.destinationAreaCode,
+      destinationSigunguCode: trip.destinationSigunguCode,
       startDate: trip.startDate,
       endDate: trip.endDate,
       travelers: trip.travelers,

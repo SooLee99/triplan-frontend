@@ -1,4 +1,9 @@
-import React, { useState } from "react";
+import React, {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useNavigate } from "react-router";
 import { useApp } from "../context";
 import {
@@ -16,7 +21,6 @@ import {
   CloudRain,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
   Pencil,
   Loader2,
   CheckCircle2,
@@ -29,6 +33,65 @@ import {
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { DurationSheet } from "./DurationSheet";
 import { TransportSheet } from "./TransportSheet";
+
+function formatDate(dateStr: string) {
+  try {
+    const d = new Date(dateStr);
+    const weekdays = ["일", "월", "화", "수", "목", "금", "토"];
+    return `${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]})`;
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatDurationLabel(totalMinutes: number) {
+  const totalHours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  if (totalHours <= 0) return `${mins}분`;
+  return `${totalHours}시간 ${mins}분`;
+}
+
+function useFlipAnimation(ids: string[]) {
+  const elementMapRef = useRef(
+    new Map<string, HTMLDivElement | null>(),
+  );
+  const prevRectMapRef = useRef(new Map<string, DOMRect>());
+
+  useLayoutEffect(() => {
+    ids.forEach((id) => {
+      const el = elementMapRef.current.get(id);
+      if (!el) return;
+
+      const nextRect = el.getBoundingClientRect();
+      const prevRect = prevRectMapRef.current.get(id);
+
+      if (prevRect) {
+        const dx = prevRect.left - nextRect.left;
+        const dy = prevRect.top - nextRect.top;
+
+        if (dx !== 0 || dy !== 0) {
+          el.style.transition = "none";
+          el.style.transform = `translate(${dx}px, ${dy}px)`;
+
+          requestAnimationFrame(() => {
+            el.style.transition =
+              "transform 280ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease, background-color 180ms ease, border-color 180ms ease";
+            el.style.transform = "translate(0, 0)";
+          });
+        }
+      }
+
+      prevRectMapRef.current.set(id, nextRect);
+    });
+  }, [ids]);
+
+  const setItemRef =
+    (id: string) => (node: HTMLDivElement | null) => {
+      elementMapRef.current.set(id, node);
+    };
+
+  return { setItemRef };
+}
 
 export function TimelineEditor() {
   const navigate = useNavigate();
@@ -63,10 +126,13 @@ export function TimelineEditor() {
     useState(false);
   const [arrTransportSheet, setArrTransportSheet] =
     useState(false);
-  const [expandedMap, setExpandedMap] = useState(true);
+  const [expandedMap, setExpandedMap] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [showRainPanel, setShowRainPanel] = useState(false);
   const [draggingIdx, setDraggingIdx] = useState<number | null>(
+    null,
+  );
+  const [dragOverIdx, setDragOverIdx] = useState<number | null>(
     null,
   );
 
@@ -105,9 +171,6 @@ export function TimelineEditor() {
     }, 0) +
     (day.departureSegment?.duration || 0) +
     (day.arrivalSegment?.duration || 0);
-
-  const totalHours = Math.floor(totalDuration / 60);
-  const totalMins = totalDuration % 60;
 
   const getEndTime = () => {
     if (items.length === 0) return "--:--";
@@ -153,27 +216,15 @@ export function TimelineEditor() {
     if (idx < items.length - 1) movePlace(idx, idx + 1);
   };
 
-  const formatDate = (dateStr: string) => {
-    try {
-      const d = new Date(dateStr);
-      const weekdays = [
-        "일",
-        "월",
-        "화",
-        "수",
-        "목",
-        "금",
-        "토",
-      ];
-      return `${d.getMonth() + 1}/${d.getDate()}(${weekdays[d.getDay()]})`;
-    } catch {
-      return dateStr;
-    }
-  };
+  const itemKeys = useMemo(
+    () => items.map((item) => item.place.id),
+    [items],
+  );
+  const { setItemRef } = useFlipAnimation(itemKeys);
 
   return (
     <div className="flex flex-col h-full bg-gray-50">
-      <div className="bg-white px-4 pt-14 pb-3 border-b border-gray-100">
+      <div className="bg-white px-4 pt-14 pb-4 border-b border-gray-100">
         <div className="flex items-center justify-between mb-3">
           <button
             onClick={() => navigate(-1)}
@@ -210,65 +261,22 @@ export function TimelineEditor() {
                 }`}
               />
             </button>
-
-            <button
-              onClick={() => setShowRainPanel((prev) => !prev)}
-              className={`w-9 h-9 rounded-full flex items-center justify-center transition-colors ${
-                showRainPanel || outdoorPlaces.length > 0
-                  ? "bg-blue-100"
-                  : "bg-gray-100"
-              }`}
-            >
-              <CloudRain
-                className={`w-4 h-4 ${
-                  showRainPanel || outdoorPlaces.length > 0
-                    ? "text-blue-600"
-                    : "text-gray-600"
-                }`}
-              />
-            </button>
           </div>
         </div>
 
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between gap-3">
           <div>
             <h2
               style={{ fontSize: "1.15rem", fontWeight: 700 }}
             >
               {tripInfo.destination} 여행
             </h2>
-            <div className="flex items-center gap-2 mt-0.5">
-              <span
-                className="text-gray-400"
-                style={{ fontSize: "0.75rem" }}
-              >
-                {tripInfo.startDate.replace(/-/g, ".")}
-              </span>
-              <span
-                className="text-gray-300"
-                style={{ fontSize: "0.75rem" }}
-              >
-                |
-              </span>
-              <span
-                className="text-gray-400"
-                style={{ fontSize: "0.75rem" }}
-              >
-                {items.length}개 장소
-              </span>
-              <span
-                className="text-gray-300"
-                style={{ fontSize: "0.75rem" }}
-              >
-                |
-              </span>
-              <span
-                className="text-gray-400"
-                style={{ fontSize: "0.75rem" }}
-              >
-                {totalHours}시간 {totalMins}분
-              </span>
-            </div>
+            <p
+              className="text-gray-400 mt-0.5"
+              style={{ fontSize: "0.75rem" }}
+            >
+              Day {currentDay + 1} · {formatDate(day.date)}
+            </p>
           </div>
 
           <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-lg">
@@ -311,42 +319,57 @@ export function TimelineEditor() {
                 >
                   {formatDate(ds.date)}
                 </span>
-                {ds.items.length > 0 && currentDay !== i && (
-                  <span
-                    className="ml-1 text-gray-400"
-                    style={{ fontSize: "0.6rem" }}
-                  >
-                    ({ds.items.length})
-                  </span>
-                )}
               </button>
             ))}
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-2 mt-3 bg-gray-50 rounded-xl px-3 py-2">
-          <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-blue-600" />
+        <div className="mt-3 rounded-2xl bg-gray-50 px-3 py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Clock className="w-4 h-4 text-blue-600" />
+              <span
+                className="text-gray-700"
+                style={{ fontSize: "0.8rem", fontWeight: 600 }}
+              >
+                {getStartTime()} 출발 → {getEndTime()} 종료
+              </span>
+            </div>
+            <input
+              type="time"
+              value={getStartTime()}
+              onChange={handleStartTimeChange}
+              className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-600"
+              style={{ fontSize: "0.75rem", fontWeight: 600 }}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2 mt-2">
             <span
-              className="text-gray-600"
-              style={{ fontSize: "0.8rem", fontWeight: 500 }}
+              className="px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-500"
+              style={{ fontSize: "0.72rem", fontWeight: 600 }}
             >
-              {getStartTime()} 출발 → {getEndTime()} 종료
+              장소 {items.length}개
+            </span>
+            <span
+              className="px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-500"
+              style={{ fontSize: "0.72rem", fontWeight: 600 }}
+            >
+              총 {formatDurationLabel(totalDuration)}
+            </span>
+            <span
+              className="px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-500"
+              style={{ fontSize: "0.72rem", fontWeight: 600 }}
+            >
+              야외 {outdoorPlaces.length}개
             </span>
           </div>
-          <input
-            type="time"
-            value={getStartTime()}
-            onChange={handleStartTimeChange}
-            className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-600"
-            style={{ fontSize: "0.75rem", fontWeight: 600 }}
-          />
         </div>
       </div>
 
       {recalcStatus !== "idle" && (
         <div
-          className={`mx-4 mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2 ${
+          className={`mx-4 mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all duration-300 ${
             recalcStatus === "calculating"
               ? "bg-blue-50"
               : "bg-green-50"
@@ -377,7 +400,7 @@ export function TimelineEditor() {
       )}
 
       {showSaved && (
-        <div className="mx-4 mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2 bg-blue-50">
+        <div className="mx-4 mt-3 px-4 py-2.5 rounded-xl flex items-center gap-2 bg-blue-50 transition-all duration-300">
           <Bookmark className="w-4 h-4 text-blue-600 fill-blue-600" />
           <span
             className="text-blue-600"
@@ -390,10 +413,10 @@ export function TimelineEditor() {
 
       <button
         onClick={() => setExpandedMap(!expandedMap)}
-        className="mx-4 mt-3 bg-gradient-to-br from-blue-100 to-cyan-50 rounded-2xl overflow-hidden relative"
+        className="mx-4 mt-3 bg-gradient-to-br from-blue-100 to-cyan-50 rounded-2xl overflow-hidden relative transition-all duration-300"
       >
         <div
-          className={`transition-all ${
+          className={`transition-[height] duration-300 ${
             expandedMap ? "h-36" : "h-16"
           } flex items-center justify-center relative`}
         >
@@ -559,7 +582,7 @@ export function TimelineEditor() {
       <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4">
         <button
           onClick={() => setShowRainPanel((prev) => !prev)}
-          className={`w-full rounded-2xl border p-4 flex items-start gap-3 transition-colors ${
+          className={`w-full rounded-2xl border p-4 flex items-start gap-3 transition-all duration-300 ${
             showRainPanel
               ? "bg-blue-50 border-blue-200"
               : "bg-white border-gray-100"
@@ -595,20 +618,26 @@ export function TimelineEditor() {
           </div>
         </button>
 
-        {showRainPanel && (
-          <div className="mt-3 space-y-3">
-            {outdoorPlaces.length === 0 ? (
-              <div
-                className="bg-white rounded-2xl border border-gray-100 p-5 text-center text-gray-400"
-                style={{ fontSize: "0.85rem", fontWeight: 500 }}
-              >
-                모든 장소가 실내입니다 👍
-              </div>
-            ) : (
-              outdoorPlaces.map((item) => (
+        <div
+          className={`overflow-hidden transition-all duration-300 ${
+            showRainPanel
+              ? "max-h-[1200px] opacity-100 mt-3"
+              : "max-h-0 opacity-0 mt-0"
+          }`}
+        >
+          {outdoorPlaces.length === 0 ? (
+            <div
+              className="bg-white rounded-2xl border border-gray-100 p-5 text-center text-gray-400"
+              style={{ fontSize: "0.85rem", fontWeight: 500 }}
+            >
+              모든 장소가 실내입니다 👍
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {outdoorPlaces.map((item) => (
                 <div
                   key={`rain-${item.place.id}`}
-                  className="bg-white rounded-2xl border border-gray-100 p-4"
+                  className="bg-white rounded-2xl border border-gray-100 p-4 transition-all duration-300"
                 >
                   <div className="flex items-center gap-3 mb-3">
                     <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
@@ -717,23 +746,24 @@ export function TimelineEditor() {
                     )}
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
 
         <div className="flex items-center justify-between mb-3 mt-4">
           <span
             style={{ fontSize: "0.85rem", fontWeight: 600 }}
           >
-            Day {currentDay + 1} 타임라인
+            일정 편집
           </span>
           <button
             onClick={() => navigate("/places")}
             className="flex items-center gap-1 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg"
             style={{ fontSize: "0.75rem", fontWeight: 600 }}
           >
-            <Plus className="w-3.5 h-3.5" /> 장소 추가
+            <Plus className="w-3.5 h-3.5" />
+            장소 추가
           </button>
         </div>
 
@@ -743,7 +773,7 @@ export function TimelineEditor() {
               `/map-search?type=departure&day=${currentDay}&returnTo=/editor`,
             )
           }
-          className="w-full bg-green-50 rounded-2xl p-3 border-2 border-green-200 mb-1 text-left"
+          className="w-full bg-green-50 rounded-2xl p-3 border border-green-200 mb-1 text-left transition-all duration-200"
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
@@ -757,23 +787,17 @@ export function TimelineEditor() {
                 출발지
               </span>
               <p
-                style={{ fontSize: "0.9rem", fontWeight: 700 }}
+                style={{ fontSize: "0.88rem", fontWeight: 700 }}
                 className="text-gray-800 truncate"
               >
                 {day.departure.name}
               </p>
-              <span
-                className="text-gray-400"
-                style={{ fontSize: "0.7rem" }}
-              >
-                {getStartTime()} 출발
-              </span>
             </div>
           </div>
         </button>
 
         {day.departureSegment && items.length > 0 && (
-          <div className="ml-6 my-1 flex items-center gap-2">
+          <div className="ml-6 my-1 flex items-center gap-2 transition-all duration-200">
             <div className="w-px h-8 bg-green-300 ml-2" />
             <button
               onClick={() => setDepTransportSheet(true)}
@@ -820,203 +844,215 @@ export function TimelineEditor() {
           </div>
         )}
 
-        {items.map((item, idx) => (
-          <React.Fragment key={`${item.place.id}-${idx}`}>
-            <div
-              className={`bg-white rounded-2xl p-3.5 shadow-sm border mb-1 relative transition-colors ${
-                draggingIdx === idx
-                  ? "border-blue-300 bg-blue-50/40"
-                  : "border-gray-100"
-              }`}
-              draggable
-              onDragStart={() => setDraggingIdx(idx)}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={() => {
-                if (draggingIdx !== null && draggingIdx !== idx) {
-                  movePlace(draggingIdx, idx);
-                }
-                setDraggingIdx(null);
-              }}
-              onDragEnd={() => setDraggingIdx(null)}
-            >
-              <div
-                className="absolute -left-1 top-4 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white z-10"
-                style={{ fontSize: "0.7rem", fontWeight: 700 }}
-              >
-                {idx + 1}
-              </div>
+        {items.map((item, idx) => {
+          const isDragging = draggingIdx === idx;
+          const isDragTarget =
+            dragOverIdx === idx &&
+            draggingIdx !== null &&
+            draggingIdx !== idx;
 
-              <div className="flex items-start gap-3 ml-4">
-                <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
-                  <ImageWithFallback
-                    src={item.place.image}
-                    alt={item.place.name}
-                    className="w-full h-full object-cover"
-                  />
+          return (
+            <React.Fragment key={item.place.id}>
+              <div
+                ref={setItemRef(item.place.id)}
+                data-flip-id={item.place.id}
+                className={`rounded-2xl p-3.5 shadow-sm border mb-1 relative transition-[background-color,border-color,box-shadow,transform,opacity] duration-200 ${
+                  isDragging
+                    ? "bg-blue-50/40 border-blue-300 shadow-md"
+                    : isDragTarget
+                      ? "bg-blue-50/20 border-blue-200"
+                      : "bg-white border-gray-100"
+                }`}
+                draggable
+                onDragStart={() => {
+                  setDraggingIdx(idx);
+                  setDragOverIdx(idx);
+                }}
+                onDragOver={(event) => {
+                  event.preventDefault();
+                  if (dragOverIdx !== idx) {
+                    setDragOverIdx(idx);
+                  }
+                }}
+                onDrop={() => {
+                  if (
+                    draggingIdx !== null &&
+                    draggingIdx !== idx
+                  ) {
+                    movePlace(draggingIdx, idx);
+                  }
+                  setDraggingIdx(null);
+                  setDragOverIdx(null);
+                }}
+                onDragEnd={() => {
+                  setDraggingIdx(null);
+                  setDragOverIdx(null);
+                }}
+              >
+                <div
+                  className="absolute -left-1 top-4 w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white z-10"
+                  style={{
+                    fontSize: "0.7rem",
+                    fontWeight: 700,
+                  }}
+                >
+                  {idx + 1}
                 </div>
 
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      onClick={() =>
-                        navigate(
-                          `/map-search?type=place&day=${currentDay}&placeId=${item.place.id}&returnTo=/editor`,
-                        )
-                      }
-                      style={{
-                        fontSize: "0.9rem",
-                        fontWeight: 600,
-                      }}
-                      className="truncate text-left hover:text-blue-600"
-                    >
-                      {item.place.name}
-                    </button>
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => handleMoveUp(idx)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-gray-500"
-                      >
-                        <ChevronUp className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleMoveDown(idx)}
-                        className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-gray-500"
-                      >
-                        <ChevronDown className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() =>
-                          removePlace(item.place.id)
-                        }
-                        className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-400"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
+                <div className="flex items-start gap-3 ml-4">
+                  <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0">
+                    <ImageWithFallback
+                      src={item.place.image}
+                      alt={item.place.name}
+                      className="w-full h-full object-cover"
+                    />
                   </div>
 
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span
-                      className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded"
-                      style={{
-                        fontSize: "0.65rem",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {item.place.category}
-                    </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          navigate(
+                            `/map-search?type=place&day=${currentDay}&placeId=${item.place.id}&returnTo=/editor`,
+                          )
+                        }
+                        style={{
+                          fontSize: "0.9rem",
+                          fontWeight: 600,
+                        }}
+                        className="truncate text-left hover:text-blue-600"
+                      >
+                        {item.place.name}
+                      </button>
 
-                    {!item.place.isIndoor && (
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => handleMoveUp(idx)}
+                          className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-gray-500"
+                        >
+                          <ChevronUp className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleMoveDown(idx)}
+                          className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-gray-500"
+                        >
+                          <ChevronDown className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() =>
+                            removePlace(item.place.id)
+                          }
+                          className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-400"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <span
-                        className="bg-blue-50 text-blue-600 px-2 py-0.5 rounded flex items-center gap-1"
+                        className="bg-gray-100 text-gray-500 px-2 py-0.5 rounded"
                         style={{
                           fontSize: "0.65rem",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {item.place.category}
+                      </span>
+                      <span
+                        className="text-blue-600"
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {item.startTime}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2">
+                      <div className="flex items-center gap-1.5">
+                        <Clock className="w-3.5 h-3.5 text-gray-400" />
+                        <span
+                          className="text-gray-500"
+                          style={{ fontSize: "0.8rem" }}
+                        >
+                          체류 {item.place.duration}분
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => setDurationSheetIdx(idx)}
+                        className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg"
+                        style={{
+                          fontSize: "0.7rem",
                           fontWeight: 600,
                         }}
                       >
-                        <CloudRain className="w-3 h-3" />비 영향
-                      </span>
-                    )}
-
-                    <span
-                      className="text-blue-600"
-                      style={{
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      {item.startTime}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between mt-2">
-                    <div className="flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-gray-400" />
-                      <span
-                        className="text-gray-500"
-                        style={{ fontSize: "0.8rem" }}
-                      >
-                        체류 {item.place.duration}분
-                      </span>
+                        <Pencil className="w-3 h-3" />
+                        시간 수정
+                      </button>
                     </div>
-                    <button
-                      onClick={() => setDurationSheetIdx(idx)}
-                      className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg"
-                      style={{
-                        fontSize: "0.7rem",
-                        fontWeight: 600,
-                      }}
-                    >
-                      <Pencil className="w-3 h-3" />
-                      시간 수정
-                    </button>
                   </div>
                 </div>
               </div>
 
-              <button
-                className="mt-2 ml-4 flex items-center gap-1 text-gray-400 hover:text-blue-500"
-                style={{ fontSize: "0.7rem" }}
-              >
-                <ExternalLink className="w-3 h-3" /> 지도 앱에서
-                열기
-              </button>
-            </div>
-
-            {item.segment && idx < items.length - 1 && (
-              <div className="ml-6 my-1 flex items-center gap-2">
-                <div className="w-px h-8 bg-gray-200 ml-2" />
-                <button
-                  onClick={() => setTransportSheetIdx(idx)}
-                  className="flex-1 flex items-center justify-between bg-white border border-dashed border-gray-200 rounded-xl px-3 py-2 hover:border-blue-300 transition-colors"
-                >
-                  <div className="flex items-center gap-2">
-                    <span style={{ fontSize: "1rem" }}>
-                      {
-                        TRANSPORT_OPTIONS.find(
-                          (t) => t.mode === item.segment!.mode,
-                        )?.icon
-                      }
-                    </span>
-                    <span
-                      className="text-gray-500"
+              {item.segment && idx < items.length - 1 && (
+                <div className="ml-6 my-1 flex items-center gap-2 transition-all duration-200">
+                  <div className="w-px h-8 bg-gray-200 ml-2" />
+                  <button
+                    onClick={() => setTransportSheetIdx(idx)}
+                    className="flex-1 flex items-center justify-between bg-white border border-dashed border-gray-200 rounded-xl px-3 py-2 hover:border-blue-300 transition-colors"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span style={{ fontSize: "1rem" }}>
+                        {
+                          TRANSPORT_OPTIONS.find(
+                            (t) =>
+                              t.mode === item.segment!.mode,
+                          )?.icon
+                        }
+                      </span>
+                      <span
+                        className="text-gray-500"
+                        style={{
+                          fontSize: "0.75rem",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {
+                          TRANSPORT_OPTIONS.find(
+                            (t) =>
+                              t.mode === item.segment!.mode,
+                          )?.label
+                        }
+                      </span>
+                      <span
+                        className="text-gray-400"
+                        style={{ fontSize: "0.75rem" }}
+                      >
+                        {item.segment.duration}분
+                      </span>
+                    </div>
+                    <div
+                      className="flex items-center gap-1 text-blue-500"
                       style={{
-                        fontSize: "0.75rem",
+                        fontSize: "0.7rem",
                         fontWeight: 500,
                       }}
                     >
-                      {
-                        TRANSPORT_OPTIONS.find(
-                          (t) => t.mode === item.segment!.mode,
-                        )?.label
-                      }
-                    </span>
-                    <span
-                      className="text-gray-400"
-                      style={{ fontSize: "0.75rem" }}
-                    >
-                      {item.segment.duration}분
-                    </span>
-                  </div>
-                  <div
-                    className="flex items-center gap-1 text-blue-500"
-                    style={{
-                      fontSize: "0.7rem",
-                      fontWeight: 500,
-                    }}
-                  >
-                    <Navigation className="w-3 h-3" />
-                    변경
-                  </div>
-                </button>
-              </div>
-            )}
-          </React.Fragment>
-        ))}
+                      <Navigation className="w-3 h-3" />
+                      변경
+                    </div>
+                  </button>
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
 
         {day.arrivalSegment && items.length > 0 && (
-          <div className="ml-6 my-1 flex items-center gap-2">
+          <div className="ml-6 my-1 flex items-center gap-2 transition-all duration-200">
             <div className="w-px h-8 bg-red-300 ml-2" />
             <button
               onClick={() => setArrTransportSheet(true)}
@@ -1069,7 +1105,7 @@ export function TimelineEditor() {
               `/map-search?type=arrival&day=${currentDay}&returnTo=/editor`,
             )
           }
-          className="w-full bg-red-50 rounded-2xl p-3 border-2 border-red-200 mt-1 text-left"
+          className="w-full bg-red-50 rounded-2xl p-3 border border-red-200 mt-1 text-left transition-all duration-200"
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
@@ -1083,17 +1119,11 @@ export function TimelineEditor() {
                 도착지
               </span>
               <p
-                style={{ fontSize: "0.9rem", fontWeight: 700 }}
+                style={{ fontSize: "0.88rem", fontWeight: 700 }}
                 className="text-gray-800 truncate"
               >
                 {day.arrival.name}
               </p>
-              <span
-                className="text-gray-400"
-                style={{ fontSize: "0.7rem" }}
-              >
-                {getEndTime()} 도착 예정
-              </span>
             </div>
           </div>
         </button>
