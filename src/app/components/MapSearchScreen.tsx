@@ -36,8 +36,13 @@ function getMapBounds() {
 export function MapSearchScreen() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const { updateDayArrival, updateDayDeparture, replacePlace } =
-    useApp();
+  const {
+    updateDayArrival,
+    updateDayDeparture,
+    replacePlace,
+    addPlace,
+    setCurrentDay,
+  } = useApp();
 
   const typeParam = params.get("type");
   const type =
@@ -96,6 +101,10 @@ export function MapSearchScreen() {
     navigate(`/place-search?${searchParams.toString()}`);
   };
 
+  const handleBack = () => {
+    navigate(returnTo);
+  };
+
   const handleConfirm = () => {
     if (!selectedItem) return;
 
@@ -128,7 +137,7 @@ export function MapSearchScreen() {
       updateDayDeparture(safeDay, point);
     }
 
-    navigate(returnTo);
+    navigate(returnTo, { replace: returnTo === "/editor" });
   };
 
   return (
@@ -137,7 +146,7 @@ export function MapSearchScreen() {
 
       <div className="absolute left-4 right-4 top-12 z-30 flex items-center gap-3">
         <button
-          onClick={() => navigate(-1)}
+          onClick={handleBack}
           className="h-10 w-10 rounded-full bg-white/95 shadow-sm flex items-center justify-center"
         >
           <ChevronLeft className="h-5 w-5 text-gray-700" />

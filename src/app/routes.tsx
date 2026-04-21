@@ -12,7 +12,6 @@ import { SavedTripsScreen } from "./components/SavedTripsScreen";
 import { MyPageScreen } from "./components/MyPageScreen";
 import { BottomNav } from "./components/BottomNav";
 import { DepartureArrivalScreen } from "./components/DepartureArrivalScreen";
-
 import { CalendarScreen } from "./components/CalendarScreen";
 import { SplashScreen } from "./components/SplashScreen";
 import { OnboardingScreen } from "./components/OnboardingScreen";
@@ -24,6 +23,7 @@ import { CustomerSupportScreen } from "./components/CustomerSupportScreen";
 import { DestinationSelectScreen } from "./components/DestinationSelectScreen";
 import { MapSearchScreen } from "./components/MapSearchScreen";
 import { PlaceSearchScreen } from "./components/PlaceSearchScreen";
+import { PlaceDetail } from "./components/PlaceDetail";
 
 function RootLayout() {
   return (
@@ -80,6 +80,7 @@ export const router = createBrowserRouter([
           { path: "/places", Component: PlacesScreen },
           { path: "/editor", Component: TimelineEditor },
           { path: "/share", Component: ShareScreen },
+          { path: "/place-detail", Component: PlaceDetail },
           {
             path: "/notifications",
             Component: NotificationSettingsScreen,

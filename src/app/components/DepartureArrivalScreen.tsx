@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router";
 import { useApp } from "../context";
 import { type DayPoint } from "../store";
@@ -82,7 +82,7 @@ export function DepartureArrivalScreen() {
   } = useApp();
   const [activeDay, setActiveDay] = useState(0);
   const didInitSchedules = useRef(false);
-  
+
   useEffect(() => {
     if (didInitSchedules.current) return;
     didInitSchedules.current = true;
@@ -116,7 +116,7 @@ export function DepartureArrivalScreen() {
 
   const handleNext = () => {
     if (!allDaysHavePoints) return;
-    navigate("/places");
+    navigate("/editor");
   };
 
   return (

@@ -93,6 +93,26 @@ function useFlipAnimation(ids: string[]) {
   return { setItemRef };
 }
 
+type PlaceDetailNavigationState = {
+  name: string;
+  description: string;
+  image: string;
+  category: string;
+  visitDate: string;
+  visitTime: string;
+  preparations: string[];
+  memo: string;
+};
+
+type DetailCapablePlace = {
+  name: string;
+  image?: string;
+  category?: string;
+  description?: string;
+  preparations?: string[];
+  memo?: string;
+};
+
 export function TimelineEditor() {
   const navigate = useNavigate();
   const {
@@ -129,6 +149,10 @@ export function TimelineEditor() {
   const [expandedMap, setExpandedMap] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [showRainPanel, setShowRainPanel] = useState(false);
+  const [showDepartureTimeSheet, setShowDepartureTimeSheet] =
+    useState(false);
+  const [departureTimeValue, setDepartureTimeValue] =
+    useState("");
   const [draggingIdx, setDraggingIdx] = useState<number | null>(
     null,
   );
@@ -177,14 +201,21 @@ export function TimelineEditor() {
     const last = items[items.length - 1];
     const [h, m] = last.startTime.split(":").map(Number);
     let endMin = h * 60 + m + last.place.duration;
-    if (day.arrivalSegment)
+    if (day.arrivalSegment) {
       endMin += day.arrivalSegment.duration;
-    return `${String(Math.floor(endMin / 60)).padStart(2, "0")}:${String(endMin % 60).padStart(2, "0")}`;
+    }
+    return `${String(Math.floor(endMin / 60)).padStart(
+      2,
+      "0",
+    )}:${String(endMin % 60).padStart(2, "0")}`;
   };
 
   const getStartTime = () => {
     const base = day.startHour * 60 + (day.startMinute || 0);
-    return `${String(Math.floor(base / 60)).padStart(2, "0")}:${String(base % 60).padStart(2, "0")}`;
+    return `${String(Math.floor(base / 60)).padStart(
+      2,
+      "0",
+    )}:${String(base % 60).padStart(2, "0")}`;
   };
 
   const handleStartTimeChange = (
@@ -214,6 +245,63 @@ export function TimelineEditor() {
 
   const handleMoveDown = (idx: number) => {
     if (idx < items.length - 1) movePlace(idx, idx + 1);
+  };
+
+  const openDepartureTimeSheet = () => {
+    setDepartureTimeValue(getStartTime());
+    setShowDepartureTimeSheet(true);
+  };
+
+  const applyDepartureTimeSheet = () => {
+    const [hourStr, minStr] = departureTimeValue.split(":");
+    const hour = Number(hourStr);
+    const minute = Number(minStr);
+
+    if (
+      Number.isNaN(hour) ||
+      Number.isNaN(minute) ||
+      hour < 0 ||
+      hour > 23 ||
+      minute < 0 ||
+      minute > 59
+    ) {
+      return;
+    }
+
+    updateDayStartTime(currentDay, hour, minute);
+    setShowDepartureTimeSheet(false);
+  };
+
+  const openPlaceDetail = (
+    rawPlace: DetailCapablePlace,
+    visitTime: string,
+    fallbackCategory?: string,
+  ) => {
+    const detailState: PlaceDetailNavigationState = {
+      name: rawPlace.name,
+      description:
+        rawPlace.description || "장소 설명이 없습니다.",
+      image: rawPlace.image || "",
+      category: fallbackCategory || rawPlace.category || "장소",
+      visitDate: day.date,
+      visitTime,
+      preparations: rawPlace.preparations || [],
+      memo: rawPlace.memo || "",
+    };
+
+    navigate("/place-detail", {
+      state: detailState,
+    });
+  };
+
+  const handleCardKeyDown = (
+    event: React.KeyboardEvent<HTMLDivElement>,
+    onOpen: () => void,
+  ) => {
+    if (event.key === "Enter" || event.key === " ") {
+      event.preventDefault();
+      onOpen();
+    }
   };
 
   const itemKeys = useMemo(
@@ -758,7 +846,11 @@ export function TimelineEditor() {
             일정 편집
           </span>
           <button
-            onClick={() => navigate("/places")}
+            onClick={() =>
+              navigate(
+                `/map-search?type=place&day=${currentDay}&returnTo=/editor`,
+              )
+            }
             className="flex items-center gap-1 text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg"
             style={{ fontSize: "0.75rem", fontWeight: 600 }}
           >
@@ -767,18 +859,32 @@ export function TimelineEditor() {
           </button>
         </div>
 
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() =>
-            navigate(
-              `/map-search?type=departure&day=${currentDay}&returnTo=/editor`,
+            openPlaceDetail(
+              day.departure as DetailCapablePlace,
+              getStartTime(),
+              "출발지",
             )
           }
-          className="w-full bg-green-50 rounded-2xl p-3 border border-green-200 mb-1 text-left transition-all duration-200"
+          onKeyDown={(event) =>
+            handleCardKeyDown(event, () =>
+              openPlaceDetail(
+                day.departure as DetailCapablePlace,
+                getStartTime(),
+                "출발지",
+              ),
+            )
+          }
+          className="w-full bg-green-50 rounded-2xl p-3 border border-green-200 mb-1 text-left transition-all duration-200 cursor-pointer hover:border-green-300"
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-green-500 flex items-center justify-center flex-shrink-0">
               <CircleDot className="w-4 h-4 text-white" />
             </div>
+
             <div className="flex-1 min-w-0">
               <span
                 className="text-green-600"
@@ -792,9 +898,27 @@ export function TimelineEditor() {
               >
                 {day.departure.name}
               </p>
+              <p
+                className="text-green-600 mt-0.5"
+                style={{ fontSize: "0.72rem", fontWeight: 600 }}
+              >
+                출발 시간 {getStartTime()}
+              </p>
             </div>
+
+            <button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                openDepartureTimeSheet();
+              }}
+              className="px-2.5 py-1.5 rounded-lg bg-white text-green-600 border border-green-200 hover:border-green-400 transition-colors"
+              style={{ fontSize: "0.72rem", fontWeight: 600 }}
+            >
+              일정 변경
+            </button>
           </div>
-        </button>
+        </div>
 
         {day.departureSegment && items.length > 0 && (
           <div className="ml-6 my-1 flex items-center gap-2 transition-all duration-200">
@@ -856,12 +980,28 @@ export function TimelineEditor() {
               <div
                 ref={setItemRef(item.place.id)}
                 data-flip-id={item.place.id}
-                className={`rounded-2xl p-3.5 shadow-sm border mb-1 relative transition-[background-color,border-color,box-shadow,transform,opacity] duration-200 ${
+                role="button"
+                tabIndex={0}
+                onClick={() =>
+                  openPlaceDetail(
+                    item.place as DetailCapablePlace,
+                    item.startTime,
+                  )
+                }
+                onKeyDown={(event) =>
+                  handleCardKeyDown(event, () =>
+                    openPlaceDetail(
+                      item.place as DetailCapablePlace,
+                      item.startTime,
+                    ),
+                  )
+                }
+                className={`rounded-2xl p-3.5 shadow-sm border mb-1 relative transition-[background-color,border-color,box-shadow,transform,opacity] duration-200 cursor-pointer ${
                   isDragging
                     ? "bg-blue-50/40 border-blue-300 shadow-md"
                     : isDragTarget
                       ? "bg-blue-50/20 border-blue-200"
-                      : "bg-white border-gray-100"
+                      : "bg-white border-gray-100 hover:border-blue-200"
                 }`}
                 draggable
                 onDragStart={() => {
@@ -910,39 +1050,40 @@ export function TimelineEditor() {
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          navigate(
-                            `/map-search?type=place&day=${currentDay}&placeId=${item.place.id}&returnTo=/editor`,
-                          )
-                        }
+                      <div
                         style={{
                           fontSize: "0.9rem",
                           fontWeight: 600,
                         }}
-                        className="truncate text-left hover:text-blue-600"
+                        className="truncate text-left"
                       >
                         {item.place.name}
-                      </button>
+                      </div>
 
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => handleMoveUp(idx)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleMoveUp(idx);
+                          }}
                           className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-gray-500"
                         >
                           <ChevronUp className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => handleMoveDown(idx)}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleMoveDown(idx);
+                          }}
                           className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-gray-500"
                         >
                           <ChevronDown className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() =>
-                            removePlace(item.place.id)
-                          }
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            removePlace(item.place.id);
+                          }}
                           className="w-6 h-6 rounded flex items-center justify-center text-gray-300 hover:text-red-400"
                         >
                           <X className="w-4 h-4" />
@@ -982,7 +1123,10 @@ export function TimelineEditor() {
                         </span>
                       </div>
                       <button
-                        onClick={() => setDurationSheetIdx(idx)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          setDurationSheetIdx(idx);
+                        }}
                         className="flex items-center gap-1 text-blue-600 bg-blue-50 px-2.5 py-1 rounded-lg"
                         style={{
                           fontSize: "0.7rem",
@@ -1099,13 +1243,26 @@ export function TimelineEditor() {
           </div>
         )}
 
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={() =>
-            navigate(
-              `/map-search?type=arrival&day=${currentDay}&returnTo=/editor`,
+            openPlaceDetail(
+              day.arrival as DetailCapablePlace,
+              getEndTime(),
+              "도착지",
             )
           }
-          className="w-full bg-red-50 rounded-2xl p-3 border border-red-200 mt-1 text-left transition-all duration-200"
+          onKeyDown={(event) =>
+            handleCardKeyDown(event, () =>
+              openPlaceDetail(
+                day.arrival as DetailCapablePlace,
+                getEndTime(),
+                "도착지",
+              ),
+            )
+          }
+          className="w-full bg-red-50 rounded-2xl p-3 border border-red-200 mt-1 text-left transition-all duration-200 cursor-pointer hover:border-red-300"
         >
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-red-500 flex items-center justify-center flex-shrink-0">
@@ -1124,9 +1281,15 @@ export function TimelineEditor() {
               >
                 {day.arrival.name}
               </p>
+              <p
+                className="text-red-500 mt-0.5"
+                style={{ fontSize: "0.72rem", fontWeight: 600 }}
+              >
+                도착 시간 {getEndTime()}
+              </p>
             </div>
           </div>
-        </button>
+        </div>
 
         {items.length === 0 && (
           <div className="flex flex-col items-center justify-center py-10 gap-3">
@@ -1138,7 +1301,11 @@ export function TimelineEditor() {
               Day {currentDay + 1}에 장소를 추가하세요
             </p>
             <button
-              onClick={() => navigate("/places")}
+              onClick={() =>
+                navigate(
+                  `/map-search?type=place&day=${currentDay}&returnTo=/editor`,
+                )
+              }
               className="px-4 py-2 bg-blue-600 text-white rounded-xl"
               style={{ fontSize: "0.85rem", fontWeight: 600 }}
             >
@@ -1215,6 +1382,54 @@ export function TimelineEditor() {
             setArrTransportSheet(false);
           }}
         />
+      )}
+
+      {showDepartureTimeSheet && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center">
+          <div className="w-full sm:w-[420px] bg-white rounded-t-3xl sm:rounded-3xl p-5">
+            <p
+              className="text-gray-900"
+              style={{ fontSize: "0.95rem", fontWeight: 700 }}
+            >
+              출발 시간 변경
+            </p>
+            <p
+              className="text-gray-500 mt-1"
+              style={{ fontSize: "0.75rem" }}
+            >
+              새로운 출발 시간을 설정합니다.
+            </p>
+
+            <input
+              type="time"
+              value={departureTimeValue}
+              onChange={(event) =>
+                setDepartureTimeValue(event.target.value)
+              }
+              className="w-full mt-4 px-3 py-2 border border-gray-200 rounded-xl"
+              style={{ fontSize: "0.9rem", fontWeight: 600 }}
+            />
+
+            <div className="flex gap-2 mt-4">
+              <button
+                type="button"
+                onClick={() => setShowDepartureTimeSheet(false)}
+                className="flex-1 py-2.5 rounded-xl bg-gray-100 text-gray-600"
+                style={{ fontSize: "0.8rem", fontWeight: 600 }}
+              >
+                취소
+              </button>
+              <button
+                type="button"
+                onClick={applyDepartureTimeSheet}
+                className="flex-1 py-2.5 rounded-xl bg-blue-600 text-white"
+                style={{ fontSize: "0.8rem", fontWeight: 600 }}
+              >
+                저장
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
