@@ -6,10 +6,7 @@ import React, {
 } from "react";
 import { useNavigate } from "react-router";
 import { useApp } from "../context";
-import {
-  TRANSPORT_OPTIONS,
-  INDOOR_ALTERNATIVES,
-} from "../store";
+import { TRANSPORT_OPTIONS } from "../store";
 import {
   ChevronLeft,
   Undo2,
@@ -18,7 +15,6 @@ import {
   MapPin,
   Navigation,
   X,
-  CloudRain,
   ChevronDown,
   ChevronUp,
   Pencil,
@@ -27,8 +23,6 @@ import {
   Bookmark,
   CircleDot,
   Flag,
-  RefreshCw,
-  Star,
 } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { DurationSheet } from "./DurationSheet";
@@ -42,13 +36,6 @@ function formatDate(dateStr: string) {
   } catch {
     return dateStr;
   }
-}
-
-function formatDurationLabel(totalMinutes: number) {
-  const totalHours = Math.floor(totalMinutes / 60);
-  const mins = totalMinutes % 60;
-  if (totalHours <= 0) return `${mins}분`;
-  return `${totalHours}시간 ${mins}분`;
 }
 
 function useFlipAnimation(ids: string[]) {
@@ -111,7 +98,84 @@ type DetailCapablePlace = {
   description?: string;
   preparations?: string[];
   memo?: string;
+  weatherEmoji?: string;
+  weatherCode?: string;
+  weatherCondition?: string;
+  sky?: string;
+  pty?: string | number;
 };
+
+type WeatherCapableItem = {
+  weatherEmoji?: string;
+  weatherCode?: string;
+  weatherCondition?: string;
+  sky?: string;
+  pty?: string | number;
+  place?: {
+    weatherEmoji?: string;
+    weatherCode?: string;
+    weatherCondition?: string;
+    sky?: string;
+    pty?: string | number;
+  };
+};
+
+function getWeatherEmoji(item: WeatherCapableItem) {
+  const directEmoji =
+    item.weatherEmoji || item.place?.weatherEmoji;
+  if (directEmoji) return directEmoji;
+
+  const weatherCode = String(
+    item.weatherCode ||
+      item.place?.weatherCode ||
+      item.weatherCondition ||
+      item.place?.weatherCondition ||
+      "",
+  ).toLowerCase();
+
+  if (
+    weatherCode.includes("rain") ||
+    weatherCode.includes("shower") ||
+    weatherCode.includes("drizzle")
+  ) {
+    return "🌧️";
+  }
+
+  if (weatherCode.includes("snow")) {
+    return "❄️";
+  }
+
+  if (weatherCode.includes("overcast")) {
+    return "☁️";
+  }
+
+  if (weatherCode.includes("cloud")) {
+    return "⛅";
+  }
+
+  const pty = String(item.pty ?? item.place?.pty ?? "");
+  if (["1", "2", "4", "5", "6"].includes(pty)) {
+    return "🌧️";
+  }
+  if (["3", "7"].includes(pty)) {
+    return "❄️";
+  }
+
+  const sky = String(
+    item.sky ?? item.place?.sky ?? "",
+  ).toLowerCase();
+  if (sky.includes("overcast")) {
+    return "☁️";
+  }
+  if (sky.includes("cloud")) {
+    return "⛅";
+  }
+  if (sky.includes("clear")) {
+    return "☀️";
+  }
+
+  return "☀️";
+}
 
 export function TimelineEditor() {
   const navigate = useNavigate();
@@ -127,7 +191,6 @@ export function TimelineEditor() {
     updateDayStartTime,
     removePlace,
     movePlace,
-    replacePlace,
     recalcStatus,
     undoSchedule,
     canUndo,
@@ -148,7 +211,6 @@ export function TimelineEditor() {
     useState(false);
   const [expandedMap, setExpandedMap] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
-  const [showRainPanel, setShowRainPanel] = useState(false);
   const [showDepartureTimeSheet, setShowDepartureTimeSheet] =
     useState(false);
   const [departureTimeValue, setDepartureTimeValue] =
@@ -183,18 +245,6 @@ export function TimelineEditor() {
   }
 
   const items = day.items;
-  const outdoorPlaces = items.filter(
-    (item) => !item.place.isIndoor,
-  );
-
-  const totalDuration =
-    items.reduce((sum, item) => {
-      let t = item.place.duration;
-      if (item.segment) t += item.segment.duration;
-      return sum + t;
-    }, 0) +
-    (day.departureSegment?.duration || 0) +
-    (day.arrivalSegment?.duration || 0);
 
   const getEndTime = () => {
     if (items.length === 0) return "--:--";
@@ -216,27 +266,6 @@ export function TimelineEditor() {
       2,
       "0",
     )}:${String(base % 60).padStart(2, "0")}`;
-  };
-
-  const handleStartTimeChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    const [hourStr, minStr] = event.target.value.split(":");
-    const startHour = Number(hourStr);
-    const startMinute = Number(minStr);
-
-    if (
-      Number.isNaN(startHour) ||
-      Number.isNaN(startMinute) ||
-      startHour < 0 ||
-      startHour > 23 ||
-      startMinute < 0 ||
-      startMinute > 59
-    ) {
-      return;
-    }
-
-    updateDayStartTime(currentDay, startHour, startMinute);
   };
 
   const handleMoveUp = (idx: number) => {
@@ -321,6 +350,16 @@ export function TimelineEditor() {
             <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
 
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h2
+                style={{ fontSize: "1.15rem", fontWeight: 700 }}
+              >
+                {tripInfo.destination} 여행
+              </h2>
+            </div>
+          </div>
+
           <div className="flex items-center gap-2">
             {canUndo && (
               <button
@@ -349,32 +388,6 @@ export function TimelineEditor() {
                 }`}
               />
             </button>
-          </div>
-        </div>
-
-        <div className="flex items-start justify-between gap-3">
-          <div>
-            <h2
-              style={{ fontSize: "1.15rem", fontWeight: 700 }}
-            >
-              {tripInfo.destination} 여행
-            </h2>
-            <p
-              className="text-gray-400 mt-0.5"
-              style={{ fontSize: "0.75rem" }}
-            >
-              Day {currentDay + 1} · {formatDate(day.date)}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-lg">
-            <span style={{ fontSize: "0.8rem" }}>☀️</span>
-            <span
-              className="text-amber-600"
-              style={{ fontSize: "0.75rem", fontWeight: 600 }}
-            >
-              24°C
-            </span>
           </div>
         </div>
 
@@ -626,177 +639,6 @@ export function TimelineEditor() {
       </button>
 
       <div className="flex-1 overflow-y-auto px-4 pt-3 pb-4">
-        <button
-          onClick={() => setShowRainPanel((prev) => !prev)}
-          className={`w-full rounded-2xl border p-4 flex items-start gap-3 transition-all duration-300 ${
-            showRainPanel
-              ? "bg-blue-50 border-blue-200"
-              : "bg-white border-gray-100"
-          }`}
-        >
-          <CloudRain className="w-5 h-5 mt-0.5 flex-shrink-0 text-blue-500" />
-          <div className="flex-1 text-left">
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <div
-                  className="text-blue-700"
-                  style={{
-                    fontSize: "0.9rem",
-                    fontWeight: 700,
-                  }}
-                >
-                  비 예보 대비
-                </div>
-                <div
-                  className="text-blue-500 mt-0.5"
-                  style={{ fontSize: "0.75rem" }}
-                >
-                  오후 2시~5시 비 예보 · 야외 일정{" "}
-                  {outdoorPlaces.length}개
-                </div>
-              </div>
-              {showRainPanel ? (
-                <ChevronUp className="w-4 h-4 text-blue-500" />
-              ) : (
-                <ChevronDown className="w-4 h-4 text-blue-500" />
-              )}
-            </div>
-          </div>
-        </button>
-
-        <div
-          className={`overflow-hidden transition-all duration-300 ${
-            showRainPanel
-              ? "max-h-[1200px] opacity-100 mt-3"
-              : "max-h-0 opacity-0 mt-0"
-          }`}
-        >
-          {outdoorPlaces.length === 0 ? (
-            <div
-              className="bg-white rounded-2xl border border-gray-100 p-5 text-center text-gray-400"
-              style={{ fontSize: "0.85rem", fontWeight: 500 }}
-            >
-              모든 장소가 실내입니다 👍
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {outdoorPlaces.map((item) => (
-                <div
-                  key={`rain-${item.place.id}`}
-                  className="bg-white rounded-2xl border border-gray-100 p-4 transition-all duration-300"
-                >
-                  <div className="flex items-center gap-3 mb-3">
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0">
-                      <ImageWithFallback
-                        src={item.place.image}
-                        alt={item.place.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <div
-                        style={{
-                          fontSize: "0.9rem",
-                          fontWeight: 700,
-                        }}
-                        className="truncate"
-                      >
-                        {item.place.name}
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span
-                          className="text-gray-400"
-                          style={{ fontSize: "0.7rem" }}
-                        >
-                          {item.place.category}
-                        </span>
-                        <span
-                          className="text-red-400 flex items-center gap-0.5"
-                          style={{
-                            fontSize: "0.7rem",
-                            fontWeight: 500,
-                          }}
-                        >
-                          <CloudRain className="w-3 h-3" />비
-                          영향
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <p
-                      className="text-gray-400"
-                      style={{
-                        fontSize: "0.7rem",
-                        fontWeight: 500,
-                      }}
-                    >
-                      대체 추천
-                    </p>
-
-                    {INDOOR_ALTERNATIVES.slice(0, 2).map(
-                      (alt) => (
-                        <button
-                          key={`${item.place.id}-${alt.id}`}
-                          onClick={() =>
-                            replacePlace(item.place.id, alt)
-                          }
-                          className="w-full flex items-center gap-3 bg-gray-50 rounded-xl p-3 border border-gray-100 hover:border-blue-300 transition-colors"
-                        >
-                          <div className="w-10 h-10 rounded-lg overflow-hidden flex-shrink-0">
-                            <ImageWithFallback
-                              src={alt.image}
-                              alt={alt.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-
-                          <div className="flex-1 text-left">
-                            <div
-                              style={{
-                                fontSize: "0.8rem",
-                                fontWeight: 600,
-                              }}
-                            >
-                              {alt.name}
-                            </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <span
-                                className="text-gray-400"
-                                style={{ fontSize: "0.65rem" }}
-                              >
-                                {alt.category}
-                              </span>
-                              <span
-                                className="flex items-center gap-0.5 text-gray-400"
-                                style={{ fontSize: "0.65rem" }}
-                              >
-                                <Clock className="w-3 h-3" />
-                                {alt.duration}분
-                              </span>
-                              <span
-                                className="flex items-center gap-0.5 text-amber-500"
-                                style={{ fontSize: "0.65rem" }}
-                              >
-                                <Star className="w-3 h-3 fill-amber-500" />
-                                {alt.rating}
-                              </span>
-                            </div>
-                          </div>
-
-                          <RefreshCw className="w-4 h-4 text-blue-500 flex-shrink-0" />
-                        </button>
-                      ),
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-
         <div className="flex items-center justify-between mb-3 mt-4">
           <span
             style={{ fontSize: "0.85rem", fontWeight: 600 }}
@@ -932,6 +774,9 @@ export function TimelineEditor() {
             dragOverIdx === idx &&
             draggingIdx !== null &&
             draggingIdx !== idx;
+          const weatherEmoji = getWeatherEmoji(
+            item as WeatherCapableItem,
+          );
 
           return (
             <React.Fragment key={item.place.id}>
@@ -1067,6 +912,16 @@ export function TimelineEditor() {
                         }}
                       >
                         {item.startTime}
+                      </span>
+                      <span
+                        aria-label={`${item.startTime} 날씨`}
+                        title={`${item.startTime} 날씨`}
+                        style={{
+                          fontSize: "0.95rem",
+                          lineHeight: 1,
+                        }}
+                      >
+                        {weatherEmoji}
                       </span>
                     </div>
 
