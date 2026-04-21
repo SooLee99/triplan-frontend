@@ -82,7 +82,7 @@ interface AppState {
   updateArrivalTransport: (mode: TransportMode) => void;
   movePlace: (fromIdx: number, toIdx: number) => void;
   removePlace: (placeId: string) => void;
-  addPlace: (place: Place) => void;
+  addPlace: (place: Place, dayIdx?: number) => void;
   replacePlace: (oldId: string, newPlace: Place) => void;
 
   recalcStatus: "idle" | "calculating" | "done";
@@ -607,18 +607,19 @@ export function AppProvider({
   );
 
   const addPlace = useCallback(
-    (place: Place) => {
+    (place: Place, dayIdx?: number) => {
+      const targetDay = dayIdx ?? currentDay;
       setDaySchedulesRaw((prev) => {
         pushHistory(prev);
         const updated = [...prev];
-        const day = updated[currentDay];
+        const day = updated[targetDay];
         if (!day) return prev;
 
         const newItems = [
           ...day.items,
           { place, startTime: "00:00" },
         ];
-        updated[currentDay] = recalculateDaySchedule({
+        updated[targetDay] = recalculateDaySchedule({
           ...day,
           items: newItems,
         });
@@ -630,8 +631,8 @@ export function AppProvider({
         const next = normalizePlacesByDay(prev).map(
           (dayPlaces) => [...dayPlaces],
         );
-        if (!next[currentDay].some((p) => p.id === place.id)) {
-          next[currentDay] = [...next[currentDay], place];
+        if (!next[targetDay].some((p) => p.id === place.id)) {
+          next[targetDay] = [...next[targetDay], place];
         }
         return next;
       });
@@ -641,6 +642,7 @@ export function AppProvider({
       pushHistory,
       animateRecalc,
       normalizePlacesByDay,
+      currentDay,
     ],
   );
 

@@ -25,38 +25,6 @@ type PlaceDetailNavigationState = {
   memo: string;
 };
 
-const CATEGORY_OPTIONS = [
-  { label: "숙소", emoji: "🏨" },
-  { label: "식사", emoji: "🍽️" },
-  { label: "카페", emoji: "☕" },
-  { label: "관광", emoji: "📸" },
-  { label: "명소", emoji: "🏛️" },
-  { label: "자연", emoji: "🌿" },
-  { label: "해변", emoji: "🏖️" },
-  { label: "산책", emoji: "🚶" },
-  { label: "공원", emoji: "🌳" },
-  { label: "쇼핑", emoji: "🛍️" },
-  { label: "시장", emoji: "🧺" },
-  { label: "문화", emoji: "🎭" },
-  { label: "전시", emoji: "🖼️" },
-  { label: "박물관", emoji: "🏺" },
-  { label: "액티비티", emoji: "🎡" },
-  { label: "체험", emoji: "🛶" },
-  { label: "야경", emoji: "🌃" },
-  { label: "사진스팟", emoji: "📷" },
-  { label: "교통", emoji: "🚉" },
-  { label: "휴식", emoji: "🛋️" },
-  { label: "기타", emoji: "📍" },
-];
-
-function getCategoryDisplay(category: string) {
-  const matched = CATEGORY_OPTIONS.find(
-    (item) => item.label === category,
-  );
-  if (matched) return `${matched.emoji} ${matched.label}`;
-  return category;
-}
-
 export function PlaceDetail() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -125,10 +93,7 @@ export function PlaceDetail() {
     const value = newPreparation.trim();
     if (!value) return;
 
-    updateField("preparations", [
-      ...detail.preparations,
-      value,
-    ]);
+    updateField("preparations", [...detail.preparations, value]);
     setNewPreparation("");
   };
 
@@ -219,15 +184,29 @@ export function PlaceDetail() {
 
           <div className="p-4">
             <div className="flex items-center gap-2 mb-2">
-              <span
-                className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600"
-                style={{
-                  fontSize: "0.72rem",
-                  fontWeight: 600,
-                }}
-              >
-                {getCategoryDisplay(detail.category)}
-              </span>
+              {isEditing ? (
+                <input
+                  value={detail.category}
+                  onChange={(event) =>
+                    updateField("category", event.target.value)
+                  }
+                  className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-100"
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                  }}
+                />
+              ) : (
+                <span
+                  className="px-2.5 py-1 rounded-full bg-blue-50 text-blue-600"
+                  style={{
+                    fontSize: "0.72rem",
+                    fontWeight: 600,
+                  }}
+                >
+                  {detail.category}
+                </span>
+              )}
             </div>
 
             <h3
@@ -334,47 +313,28 @@ export function PlaceDetail() {
             </div>
           </div>
 
-          <div className="flex items-start gap-2">
-            <Tag className="w-4 h-4 text-blue-600 mt-0.5" />
-            <div className="flex-1">
-              <div
-                className="text-gray-700 mb-2"
-                style={{ fontSize: "0.85rem", fontWeight: 600 }}
-              >
-                카테고리
-              </div>
+          <div className="flex items-center gap-2">
+            <Tag className="w-4 h-4 text-blue-600" />
+            <span
+              className="text-gray-700"
+              style={{ fontSize: "0.85rem", fontWeight: 600 }}
+            >
+              카테고리
+            </span>
 
+            <div className="ml-auto">
               {isEditing ? (
-                <div className="flex flex-wrap gap-2">
-                  {CATEGORY_OPTIONS.map((option) => {
-                    const isSelected =
-                      detail.category === option.label;
-
-                    return (
-                      <button
-                        key={option.label}
-                        type="button"
-                        onClick={() =>
-                          updateField("category", option.label)
-                        }
-                        className={`px-3 py-2 rounded-xl border transition-colors ${
-                          isSelected
-                            ? "bg-blue-600 text-white border-blue-600"
-                            : "bg-white text-gray-600 border-gray-200 hover:border-blue-300"
-                        }`}
-                        style={{
-                          fontSize: "0.8rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        <span className="mr-1">
-                          {option.emoji}
-                        </span>
-                        {option.label}
-                      </button>
-                    );
-                  })}
-                </div>
+                <input
+                  value={detail.category}
+                  onChange={(event) =>
+                    updateField("category", event.target.value)
+                  }
+                  className="px-2 py-1.5 rounded-lg border border-gray-200 text-gray-600"
+                  style={{
+                    fontSize: "0.82rem",
+                    fontWeight: 500,
+                  }}
+                />
               ) : (
                 <span
                   className="text-gray-500"
@@ -383,7 +343,7 @@ export function PlaceDetail() {
                     fontWeight: 500,
                   }}
                 >
-                  {getCategoryDisplay(detail.category)}
+                  {detail.category}
                 </span>
               )}
             </div>

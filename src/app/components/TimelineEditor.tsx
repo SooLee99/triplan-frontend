@@ -411,48 +411,6 @@ export function TimelineEditor() {
             ))}
           </div>
         )}
-
-        <div className="mt-3 rounded-2xl bg-gray-50 px-3 py-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Clock className="w-4 h-4 text-blue-600" />
-              <span
-                className="text-gray-700"
-                style={{ fontSize: "0.8rem", fontWeight: 600 }}
-              >
-                {getStartTime()} 출발 → {getEndTime()} 종료
-              </span>
-            </div>
-            <input
-              type="time"
-              value={getStartTime()}
-              onChange={handleStartTimeChange}
-              className="px-2 py-1 bg-white border border-gray-200 rounded-lg text-gray-600"
-              style={{ fontSize: "0.75rem", fontWeight: 600 }}
-            />
-          </div>
-
-          <div className="flex flex-wrap gap-2 mt-2">
-            <span
-              className="px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-500"
-              style={{ fontSize: "0.72rem", fontWeight: 600 }}
-            >
-              장소 {items.length}개
-            </span>
-            <span
-              className="px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-500"
-              style={{ fontSize: "0.72rem", fontWeight: 600 }}
-            >
-              총 {formatDurationLabel(totalDuration)}
-            </span>
-            <span
-              className="px-2.5 py-1 rounded-full bg-white border border-gray-200 text-gray-500"
-              style={{ fontSize: "0.72rem", fontWeight: 600 }}
-            >
-              야외 {outdoorPlaces.length}개
-            </span>
-          </div>
-        </div>
       </div>
 
       {recalcStatus !== "idle" && (

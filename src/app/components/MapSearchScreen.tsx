@@ -112,7 +112,7 @@ export function MapSearchScreen() {
       selectedItem;
     const point = { name, lat, lng };
 
-    if (type === "place" && placeId) {
+    if (type === "place") {
       const newPlace: Place = {
         id: `map-${id}`,
         name,
@@ -130,7 +130,12 @@ export function MapSearchScreen() {
         rating: 4.3,
       };
 
-      replacePlace(placeId, newPlace);
+      if (placeId) {
+        replacePlace(placeId, newPlace);
+      } else {
+        addPlace(newPlace, safeDay);
+      }
+      setCurrentDay(safeDay);
     } else if (type === "arrival") {
       updateDayArrival(safeDay, point);
     } else {
